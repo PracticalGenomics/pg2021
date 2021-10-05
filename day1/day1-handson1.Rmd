@@ -1,0 +1,138 @@
+---
+title : "Day 1 // Hands-on 1 // Retina Dataset"
+author: "Frederick J Tan"
+date  : "28 September 2021"
+output: 
+  html_notebook:
+    toc: true
+    toc_float: true
+---
+
+# Summary
+
+- Published as [Voigt et al., 2019](https://pubmed.gov/31075224/)
+
+![](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC6596422/bin/nihms-1529793-f0001.jpg)
+
+## Explore using cellxgene
+
+- https://cellxgene.cziscience.com/collections/7edef704-f63a-462c-8636-4bc86a9472bd
+
+## Label clusters
+
+- cell_type > Use as color scale
+- Show labels on the graph
+
+## Examine expression
+
+- Genes > RHO > Use as color scale
+- cell_type
+
+## Find differentially expressed genes
+
+- Save current selection for differential expression computation (x2)
+- See top 10 differentially expressed genes
+- Gene Sets > Pop1 high
+- Color by ...
+
+# Load packages
+
+- Introduce `scater` and `tidyverse`
+
+```{r message=FALSE}
+library( "Seurat" )
+library( "scater" )
+
+library( "tidyverse" )
+```
+
+# Load data
+
+## Seurat -> SingleCellExperiment
+
+```{r}
+sce <- readRDS( "/home/idies/workspace/practical_genomics/day1/retina.rds" )
+sce <- as.SingleCellExperiment( sce )
+```
+
+## Check data
+
+```{r}
+sce
+```
+
+# OSCA/scater functions
+
+## Visualize clusters
+
+- Find help using `help( plotUMAP )`
+
+```{r}
+plotUMAP( sce, colour_by="cell_type" )
+```
+
+## Count cell_type
+
+```{r}
+table( sce$cell_type )
+```
+
+## Compare expression
+
+- Google "ggplot rotate x axis"
+
+```{r}
+plotExpression( sce, "RHO", "cell_type" ) +
+  theme( axis.text.x=element_text( angle=90 ) )
+```
+
+# Bioconductor SingleCellExperiment
+
+![](https://raw.githubusercontent.com/Bioconductor/OSCABase/images/images/SingleCellExperiment.png)
+
+## Check class
+
+```{r}
+class( sce )
+```
+
+## Access counts
+
+- http://bioconductor.org/books/release/OSCA/data-infrastructure.html#filling-the-assays-slot
+
+```{r}
+m_retina <- assay( sce, "logcounts" )
+class( m_retina )
+```
+
+```{r}
+m_retina[ 1:5, 1:3 ]
+```
+
+## Access cell metadata
+
+- http://bioconductor.org/books/release/OSCA/data-infrastructure.html#on-the-columns
+
+```{r}
+df_cells <- colData( sce ) %>% data.frame()
+df_cells
+```
+
+## Access dimension reductions
+
+- http://bioconductor.org/books/release/OSCA/data-infrastructure.html#dimensionality-reduction-results
+
+```{r}
+df_umap <- reducedDim( sce, "UMAP" ) %>% data.frame()
+df_umap
+```
+
+# Document software
+
+- Quit the current R session
+- Run > Run All
+
+```{r}
+sessionInfo()
+```
+

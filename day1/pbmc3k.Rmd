@@ -1,0 +1,105 @@
+---
+title : "PG2021 Day 1 -- Process pbmc3k using Bioconductor OSCA"
+author: "Frederick J Tan"
+date  : "28 September 2021"
+output: 
+  html_notebook:
+    toc: true
+    toc_float: true
+---
+
+# Summary
+
+- Based on https://bioconductor.org/books/release/OSCA/unfiltered-human-pbmcs-10x-genomics.html
+
+# Load packages
+
+```{r message=FALSE}
+library( "DropletUtils" )
+library( "scater" )
+library( "scran" )
+```
+
+# Prepare data {.tabset}
+
+## Load counts
+
+```{r}
+sce <- read10xCounts( "/home/idies/workspace/practical_genomics/day1/pbmc3k/filtered_gene_bc_matrices/hg19/", col.names=TRUE )
+rownames( sce ) <- rowData( sce )$Symbol
+```
+
+```{r}
+sce
+```
+
+## Normalize
+
+```{r}
+sce <- logNormCounts( sce )
+sce
+```
+
+## Find variable genes
+
+```{r}
+dec <- modelGeneVar( sce )
+hvg <- getTopHVGs( dec, prop=0.1 )
+```
+
+## Reduce dimensions
+
+```{r}
+sce <- runPCA( sce, ncomponents=25, subset_row=hvg )
+sce <- runUMAP( sce, dimred="PCA", external_neighbors=TRUE )
+```
+
+## Cluster
+
+```{r}
+g <- buildSNNGraph( sce, use.dimred="PCA" )
+colLabels( sce ) <- factor( igraph::cluster_louvain(g)$membership )
+```
+
+## Find makers
+
+```{r}
+markers <- findMarkers( sce )
+data.frame( markers[[1]] )
+```
+
+# Visualize cells
+
+```{r fig.width=10}
+plotUMAP( sce, colour_by="label", text_by="label" )
+```
+
+```{r fig.width=10}
+plotUMAP( sce, colour_by="MS4A1" )
+```
+
+# Visalize expression
+
+```{r fig.width=10}
+goi <- c( "MS4A1", "GNLY", "CD3E", "CD14", "FCER1A", "FCGR3A", "LYZ", "PPBP", "CD8A" )
+plotExpression( sce, x="label", features=goi )
+```
+
+```{r fig.width=10}
+plotGroupedHeatmap( sce, group="label", features=goi, scale="row" )
+```
+
+# Save object
+
+```{r}
+saveRDS( sce, "/home/idies/workspace/practical_genomics/day1/pbmc3k.rds" )
+```
+
+# Document software
+
+<details>
+```{r}
+sessionInfo()
+```
+</details>
+

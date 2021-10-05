@@ -1,0 +1,352 @@
+---
+title : "Day 1 // Hands-on 2 // Explore SingleCellExperiment"
+author: ""
+date  : "04 October 2021"
+output: 
+  html_notebook:
+    toc: true
+    toc_float: true
+---
+
+# Load packages
+
+```{r message=FALSE}
+library( "Seurat" )
+library( "scater" )
+library( "scran" )
+
+library( "tidyverse" )
+```
+
+# Load data
+
+## Seurat -> SingleCellExperiment
+
+```{r}
+sce <- readRDS( "/home/idies/workspace/practical_genomics/day1/retina.rds" )
+sce <- as.SingleCellExperiment( sce )
+```
+
+## Check data
+
+```{r}
+
+```
+
+# 1. assay()
+
+## Introduce
+
+- How to access the expression data?
+
+```{r}
+help( assay )
+```
+
+```{r}
+m_assay <- assay( , "logcounts" )
+```
+
+- What class of object is this?
+
+```{r}
+class(  )
+```
+
+- How large is it?
+
+```{r}
+dim(  )
+```
+
+- How to subset first 10 rows, first 3 columns?
+
+```{r}
+m_assay[ ,  ]
+```
+
+## Subset RHO
+
+```{r}
+x_rho <- m_assay[ , ]
+```
+
+```{r}
+( x_rho )
+```
+
+```{r}
+( x_rho )
+```
+
+```{r}
+hist(  )
+```
+
+```{r}
+summary(  )
+```
+
+## Subset RHO, VIM
+
+```{r}
+goi <- c( "RHO", "VIM" )
+x_rhovim <- m_assay[ , ]
+```
+
+```{r}
+( x_rhovim )
+```
+
+```{r}
+( x_rhovim )
+```
+
+```{r}
+( x_rhovim )
+```
+
+## ggplot RHO, VIM
+
+- `t()`, `data.frame()`, `rownames_to_column()`, `pivot_longer()`
+
+```{r}
+df_rhovim <- ( x_rhovim )
+df_rhovim <- ( df_rhovim )
+df_rhovim <- ( df_rhovim )
+df_rhovim <- ( df_rhovim, cols=c( "RHO", "VIM" ) )
+df_rhovim
+```
+
+```{r}
+ggplot(  ) +
+  geom_histogram( aes(  ) ) +
+  facet_wrap( vars() )
+```
+
+# 2. colData()
+
+## Introduce
+
+- How to access the cell metadata?
+
+```{r}
+( colData )
+```
+
+```{r}
+meta <- colData(  )
+```
+
+- What class of object is this?
+
+```{r}
+( meta )
+```
+
+- What is DFrame?
+
+```{r}
+meta
+data.frame(  )
+```
+
+- How large is it?
+
+```{r}
+( meta )
+```
+
+- What categories exist?
+
+```{r}
+colnames(  )
+```
+
+## Subset rows
+
+- `colData()`, `data.frame()`, `rownames_to_column()`
+
+```{r}
+df_meta <- ( sce ) %>%
+  () %>%
+  ()
+df_meta
+```
+
+```{r}
+( df_meta )
+```
+
+```{r}
+df_meta[ ,  ]
+```
+
+## Subset libraryID
+
+```{r}
+table( df_meta$ )
+```
+
+```{r}
+df_fovea2 <- df_meta %>%
+  filter( libraryID=="" )
+df_fovea2
+```
+
+```{r}
+( df_fovea2 )
+```
+
+```{r}
+table( df_fovea2$ )
+```
+
+## ggplot gene by cell_type
+
+- `full_join()`, `filter()`
+
+```{r}
+df_rhovim_fovea2 <- df_rhovim %>%
+  ( df_meta, by="rowname" ) %>%
+  ( libraryID=="fovea_donor_2" )
+df_rhovim_fovea2
+```
+
+- `geom_violin()`, `facet_wrap()`, `theme()`
+
+```{r}
+ggplot( df_rhovim_fovea2 ) +
+  ( aes( cell_type, value ) ) +
+  ( vars(name) ) +
+  ( axis.text.x=element_text( angle=90 ) )
+```
+
+# 3. reducedDim()
+
+## Introduce
+
+- How to access the cluster visualization?
+
+```{r}
+( reducedDim )
+```
+
+- `data.frame()`, `rownames_to_column()`
+
+```{r}
+df_umap <- reducedDim( sce, "" ) %>%
+  () %>%
+  ()
+df_umap
+```
+
+## ggplot cell_type
+
+```{r}
+df_umap_meta <- full_join( , , by="rowname" )
+df_umap_meta
+```
+
+```{r}
+ggplot(  ) +
+  geom_point( aes( , , color= ) )
+```
+
+## ggplot RHO
+
+```{r}
+df_umap_rho <- full_join( , , by="rowname" ) %>%
+  filter( name=="" )
+df_umap_rho
+```
+
+```{r}
+ggplot(  ) +
+  geom_point( aes( , , color= ) )
+```
+
+# 4. findMarkers()
+
+## Introduce
+
+- How to access differentially expressed genes?
+
+```{r}
+( findMarkers )
+```
+
+- Preview of findMarkers() syntax
+
+```{r}
+colLabels( sce ) <- colData( sce )$
+markers <- findMarkers(  )
+```
+
+- What class of object is this?
+
+```{r}
+( markers )
+```
+
+- How large is it?
+
+```{r}
+( markers )
+```
+
+- Build up to `data.frame( markers[[1]] )`
+
+```{r}
+markers
+```
+
+## hist summary.logFC
+
+```{r}
+markers[1]
+```
+
+```{r}
+df_markers_amacrine <- markers[[1]] %>%
+  ()
+df_markers_amacrine
+```
+
+```{r}
+hist( df_markers_amacrine$ )
+```
+
+## plotUMAP markers
+
+```{r}
+df_markers_amacrine %>%
+  filter( summary.logFC >  )
+```
+
+```{r}
+help(  )
+```
+
+```{r fig.width=10}
+plotUMAP( sce, colour_by="MEG3", ="cell_type" )
+```
+
+# Exercise 2
+
+1. Recreate plotUMAP() using ggplot2
+    - Plot another gene, cell metadata
+1. Recreate plotExpression() using ggplot2
+    - Plot another gene by cell metadata
+1. Adjust ggplot2 appearance
+    - Add titles, customize x/y labels, theme
+1. Explore findMarkers() results
+    - Use plotUMAP(), plotExpression()
+
+# Document software
+
+```{r}
+sessionInfo()
+```
+
+

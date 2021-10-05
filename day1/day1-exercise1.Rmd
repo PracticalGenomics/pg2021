@@ -1,0 +1,123 @@
+---
+title : "Day 1 // Exercise 1 // Retina Dataset"
+author: ""
+date  : "04 October 2021"
+output: 
+  html_notebook:
+    toc: true
+    toc_float: true
+---
+
+# Summary
+
+- Published as [Voigt et al., 2019](https://pubmed.gov/31075224/)
+
+# Load packages
+
+```{r message=FALSE}
+library( "Seurat" )
+library( "scater" )
+```
+
+# Load data
+
+```{r}
+sce <- readRDS( "/home/idies/workspace/practical_genomics/day1/retina.rds" )
+sce <- as.SingleCellExperiment( sce )
+```
+
+# Check data
+
+```{r}
+sce
+```
+
+# Explore data
+
+## plotUMAP -- metadata
+
+```{r}
+plotUMAP( sce, colour_by="cell_type" )
+```
+
+## plotUMAP -- gene
+
+```{r}
+plotUMAP( sce, colour_by="RHO" )
+```
+
+## plotExpression -- distribution
+
+```{r}
+plotExpression( sce, "RHO", "cell_type" ) +
+  theme( axis.text.x=element_text( angle=90 ) )
+```
+
+# Task 1: Plot metadata
+
+- Here are the available metadata categories
+
+```{r}
+colnames( colData(sce) )
+```
+
+- Modify plotUMAP() to colour_by a different category
+
+```{r}
+plotUMAP( sce, colour_by="" )
+```
+
+- Repeat to find one or two patterns you find interesting
+
+```{r}
+plotUMAP()
+```
+
+# Task 2: Plot gene
+
+- Use this chunk to check the spelling of your gene of interest
+
+```{r}
+goi <- "RHO"
+table( goi %in% rownames(sce) )
+```
+
+- Modify plotUMAP() to plot your gene of interest
+
+```{r}
+plotUMAP( sce, colour_by="RHO" )
+```
+
+- Repeat to find one or two patterns you find interesting
+
+```{r}
+
+```
+
+# Task 3: Plot distributions
+
+- Modify plotExpression() to compare expression across different categories
+
+```{r}
+plotExpression( sce, "RHO", "libraryID" ) +
+  theme( axis.text.x=element_text( angle=90 ) )
+```
+
+- Replace `libraryID` with your category to tabulate how many cells are in your category
+
+```{r}
+table( colData(sce)$libraryID )
+```
+
+- Repeat to find one or two patterns you find interesting
+
+```{r}
+
+```
+
+# Document software
+
+```{r}
+sessionInfo()
+```
+

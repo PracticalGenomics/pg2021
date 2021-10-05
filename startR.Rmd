@@ -1,0 +1,48 @@
+---
+title : "PG2021 StartR"
+author: ""
+date  : "04 October 2021"
+output: 
+  html_notebook:
+    toc: true
+    toc_float: true
+---
+
+# Summary
+
+- Published as [Voigt et al., 2019](https://pubmed.gov/31075224/)
+- Explore using [cellxgene](https://cellxgene.cziscience.com/collections/7edef704-f63a-462c-8636-4bc86a9472bd)
+- Download Seurat .rds object
+
+# Load packages
+
+```{r message=FALSE}
+library( "Seurat" )
+library( "scater" )
+```
+
+# Load data
+
+```{r}
+sce <- readRDS( "/home/idies/workspace/practical_genomics/day1/retina.rds" )
+sce <- as.SingleCellExperiment( sce )
+```
+
+# Check data
+
+```{r}
+sce
+```
+
+# Visualize RHO expression
+
+```{r}
+plotUMAP( sce, colour_by="RHO" )
+```
+
+# Document software
+
+```{r}
+sessionInfo()
+```
+
