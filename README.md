@@ -43,5 +43,12 @@
 
 ## Day 4 // October 7th // Trajectory Analysis and Independent Work
 
-
-
+| Time  | Title                                                               | Material                                                                                        |
+|:-----:|---------------------------------------------------------------------|-------------------------------------------------------------------------------------------------|
+|  9:00 | Strategies for Trajectory Analysis                                  | [[slides](https://docs.google.com/presentation/d/10SRNr1mvxGbE1Y3wt4fQFvLcw34O6lXp7TzIqSYLCyc)] |
+| 10:00 | Overview TSCAN Code                                                 |                                                                                                 |
+| 10:30 | Break                                                               |                                                                                                 |
+| 10:45 | Breakout Session                                                    |                                                                                                 |
+| 12:00 | Lunch                                                               |                                                                                                 |
+|  1:00 | PCA                                                                 | [[doc](https://docs.google.com/document/u/0/d/1d_SR5GSST4TDvGKoC2Y8jsDPBG89J-EsxeIfOaQ1a-k/edit)][[xlxs](https://docs.google.com/spreadsheets/d/1AWi5El_iTW-2s4Ti_kpLWppkqU1dEO2x/edit#gid=328281733)] |
+|  4:45 | Wrap-up                                                             |                                                                                                 |
