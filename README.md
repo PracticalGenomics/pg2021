@@ -50,5 +50,5 @@
 | 10:30 | Break                                                               |                                                                                                 |
 | 10:45 | Breakout Session                                                    |                                                                                                 |
 | 12:00 | Lunch                                                               |                                                                                                 |
-|  1:00 | PCA                                                                 | [[doc](https://docs.google.com/document/u/0/d/1d_SR5GSST4TDvGKoC2Y8jsDPBG89J-EsxeIfOaQ1a-k/edit)][[xlxs](https://docs.google.com/spreadsheets/d/1AWi5El_iTW-2s4Ti_kpLWppkqU1dEO2x/edit#gid=328281733)] |
+|  1:00 | Practice everything you learned using the Pancreas Datasets         | [[doc](https://docs.google.com/document/u/0/d/1d_SR5GSST4TDvGKoC2Y8jsDPBG89J-EsxeIfOaQ1a-k/edit)][[xlxs](https://docs.google.com/spreadsheets/d/1AWi5El_iTW-2s4Ti_kpLWppkqU1dEO2x/edit#gid=328281733)] |
 |  4:45 | Wrap-up                                                             |                                                                                                 |
