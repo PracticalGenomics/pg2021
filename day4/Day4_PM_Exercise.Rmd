@@ -1,0 +1,226 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+Load libraries and the 3 Pancreas dataset
+```{r}
+set.seed(1000) 
+library(batchelor)
+library(scRNAseq)
+library(org.Hs.eg.db)
+library(AnnotationHub)
+library(scater)
+library(scran)
+library(DropletUtils)
+library(stringr)
+
+sce.grun <- readRDS("/home/idies/workspace/practical_genomics/day4/sce.grun.rds")
+sce.muraro <- readRDS("/home/idies/workspace/practical_genomics/day4/sce.muraro.rds")
+sce.seger <- readRDS("/home/idies/workspace/practical_genomics/day4/sce.seger.rds")
+```
+
+
+Explore each dataset to check what kind of metadata are available. Remember `colData()` and `colnames()`.
+
+Check for empty droplets. 
+Tip: Remember what the barcode distribution of empty drops from Day2.
+Functions: `barcodeRanks`
+
+```{r}
+bcrank <- barcodeRanks(counts(sce.grun))
+plot(bcrank$rank, bcrank$total, log="xy",xlab="Rank", ylab="Total UMI count", cex.lab=1.2)
+```
+
+Perform QC analysis in each dataset while considering spike-ins levels (ERCC). 
+Tip:Remember to consider batches!
+Functions: `perCellQCMetrics` and `quickPerCellQC`.
+
+```{r}
+#1a. First lets check for mitochondrial genes
+# check the gene features
+head(rowData(sce.grun))  
+# are there any genes from the MT?
+table(rowData(sce.grun)$chr)    
+
+head(rowData(sce.muraro)) 
+table(rowData(sce.muraro)$chr)
+
+head(rowData(sce.seger))
+# since this data set gives gene names we have to search for "MT-"
+table(str_detect(rowData(sce.seger)$symbol, "MT-"))
+# There is one gene what is it? Is it a mitochondrial gene?
+sce.seger[which(str_detect(rowData(sce.seger)$symbol, "MT-")),]
+
+#1b. What type of gene ids are used as the rownames?
+
+#2. Since there aren't any mitochondrial genes we don't have to consider them in the rest of the QC filtering. 
+
+stats <- perCellQCMetrics(sce.grun)
+qc <- quickPerCellQC(stats, sub.fields="altexps_ERCC_percent",
+    batch=sce.grun$donor)
+
+sce.grun <- sce.grun[,!qc$discard]
+
+stats <- perCellQCMetrics(sce.muraro)
+qc <- quickPerCellQC(stats, sub.fields="altexps_ERCC_percent",
+    batch=sce.muraro$donor)
+sce.muraro <- sce.muraro[,!qc$discard]
+
+stats <- perCellQCMetrics(sce.seger)
+qc <- quickPerCellQC(stats, sub.fields="altexps_ERCC_percent",
+    batch=sce.seger$Donor)
+sce.seger <- sce.seger[,!qc$discard]
+
+#2b. How many cells were filtered out? How many cells are left in the sce objects?
+```
+
+Normalize each dataset.
+Remember `quickCluster()`, `computeSumFactors()` and `logNormCounts()`
+Check how many clusters are generated in each dataset.
+
+```{r}
+#--- normalization ---#
+
+set.seed(1000)
+clusters <- quickCluster(sce.grun)
+sce.grun <- computeSumFactors(sce.grun, clusters=clusters)
+sce.grun <- logNormCounts(sce.grun)
+
+set.seed(1000)
+clusters <- quickCluster(sce.muraro)
+sce.muraro <- computeSumFactors(sce.muraro, clusters=clusters)
+sce.muraro <- logNormCounts(sce.muraro)
+
+set.seed(1000)
+clusters <- quickCluster(sce.seger)
+sce.seger <- computeSumFactors(sce.seger, clusters=clusters)
+sce.seger <- logNormCounts(sce.seger) 
+```
+
+Model the variance in each dataset using spike-ins.
+Tip: Explore the metadata and check for variables that can be potential source of batches (blocks).
+Functions: `modelGeneVarWithSpikes()`
+How many blocks/batches are in each dataset? 
+```{r}
+block <- paste0(sce.grun$sample, "_", sce.grun$donor)
+dec.grun <- modelGeneVarWithSpikes(sce.grun, spikes="ERCC", block=block)
+
+block <- paste0(sce.muraro$plate, "_", sce.muraro$donor)
+dec.muraro <- modelGeneVarWithSpikes(sce.muraro, "ERCC", block=block)
+
+block <- sce.seger$Donor
+dec.seger <- modelGeneVarWithSpikes(sce.seger, "ERCC", block=block)
+
+```
+
+Aggregate all datasets into a list and filter only genes in common across all.
+Tip: Revisit day 3
+How many common genes are there?
+```{r}
+all.sce <- list(Grun=sce.grun, Muraro=sce.muraro, 
+   Seger=sce.seger)
+all.dec <- list(Grun=dec.grun, Muraro=dec.muraro, 
+     Seger=dec.seger)
+
+universe <- Reduce(intersect, lapply(all.sce, rownames))
+all.sce <- lapply(all.sce, "[", i=universe,)
+all.dec <- lapply(all.dec, "[", i=universe,)
+```
+
+Perform Multi Batch Normalization, MNN correction and clustering.
+Tip: `do.call()` function allows step-wise normalization across datasets.
+Functions: `multiBatchNorm()`, `combineVar()`, `fastMNN()`, `buildSNNGraph()`, `igraph::cluster_walktrap()`.
+How many clusters after integration?
+```{r}
+normed.pancreas <- do.call(multiBatchNorm, all.sce)
+combined.pan <- do.call(combineVar, all.dec)
+chosen.genes <- rownames(combined.pan)[combined.pan$bio > 0]
+
+set.seed(1011110)
+mnn.pancreas <- fastMNN(normed.pancreas)
+
+snn.gr <- buildSNNGraph(mnn.pancreas, use.dimred="corrected", k=20)
+clusters <- igraph::cluster_walktrap(snn.gr)$membership
+clusters <- factor(clusters)
+tab <- table(Cluster=clusters, Batch=mnn.pancreas$batch)
+tab
+```
+
+Perform and plot TSNE. Try coloring by batch (dataset) and then by clusters, what do you see?
+Tip: Do any of these clusters seems unusual?
+Functions: `runTSNE()`, `plotTSNE()`
+```{r}
+mnn.pancreas <- runTSNE(mnn.pancreas, dimred="corrected")
+gridExtra::grid.arrange(
+    plotTSNE(mnn.pancreas, colour_by="batch", text_by=I(clusters)),
+    plotTSNE(mnn.pancreas, colour_by=I(clusters), text_by=I(clusters)),
+    ncol=2
+)
+```
+
+
+```{r}
+# donors <- c(
+#     normed.pancreas$Grun$donor, 
+#     normed.pancreas$Muraro$donor,
+#     normed.pancreas$Seger$Donor
+# )
+# 
+# seger.donors <- donors
+# seger.donors[mnn.pancreas$batch!="Seger"] <- NA
+# plotTSNE(mnn.pancreas, colour_by=I(seger.donors))
+```
+
+Combine all datasets, correct for the variable causing the problem above and re-cluster.
+
+```{r}
+combined <- noCorrect(normed.pancreas)
+assayNames(combined) <- "logcounts"
+combined$donor <- donors
+donors.per.batch <- split(combined$donor, combined$batch)
+donors.per.batch <- lapply(donors.per.batch, unique)
+donors.per.batch
+
+set.seed(1010100)
+multiout <- fastMNN(combined, batch=combined$donor, 
+    subset.row=chosen.genes, weights=donors.per.batch)
+
+# Renaming metadata fields for easier communication later.
+multiout$dataset <- combined$batch
+multiout$donor <- multiout$batch
+multiout$batch <- NULL
+
+g <- buildSNNGraph(multiout, use.dimred=1, k=20)
+clusters <- igraph::cluster_walktrap(g)$membership
+tab <- table(clusters, multiout$dataset)
+tab
+```
+
+Visualize new clusters. Did it fixed the problem?
+How many new clusters?
+```{r}
+multiout <- runTSNE(multiout, dimred="corrected")
+gridExtra::grid.arrange(
+    plotTSNE(multiout, colour_by="dataset", text_by=I(clusters)),
+    plotTSNE(multiout, colour_by=I(seger.donors)),
+    ncol=2
+)
+```
+
+Compare our results with the original findings. Is it good enough?
+```{r}
+proposed <- c(rep(NA, ncol(sce.grun)), 
+    sce.muraro$label,
+    sce.seger$CellType)
+
+proposed <- tolower(proposed)
+proposed[proposed=="gamma/pp"] <- "gamma"
+proposed[proposed=="pp"] <- "gamma"
+proposed[proposed=="duct"] <- "ductal"
+proposed[proposed=="psc"] <- "stellate"
+table(proposed, clusters)
+```
+
+BONUS: How can you improve the final results?
+BONUS: What genes are expressed in each cluster?

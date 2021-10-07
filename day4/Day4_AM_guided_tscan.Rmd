@@ -1,0 +1,122 @@
+---
+title: "Guided pseudotime reconstruction with TSCAN"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Overview
+
+The vignette demonstrates how to use TSCAN to infer cells' pseudotime ordering with the prior knowledge of the potential biological process. Standard single-cell analysis pipeline such as Seurat need to be run first to adequately preprocess the data. This is a semi-supervised and human-guided approach which has been widely used with the increasing complexity of single-cell genomic data.
+
+This vignette uses the single-cell RNA-seq data from PBMCs processed by Seurat as an example, and constructs a pseudotime trajectory from naive CD4 T cells to memory CD4 T cells.
+
+## Installing packages
+
+Use the following command to install the TSCAN package in R.
+
+```{r eval=FALSE}
+if (!require("devtools"))
+  install.packages("devtools")
+devtools::install_github("zji90/TSCAN")
+```
+
+This vignette uses Seurat object as an example.
+
+## Data download
+
+The PBMC scRNA-seq has been processed by Seurat. The details of data processing is described in https://satijalab.org/seurat/articles/pbmc3k_tutorial.html.
+
+## Preparations
+
+First load the essential packages of TSCAN and Seurat.
+
+```{r}
+library(TSCAN)
+library(Seurat)
+```
+
+Then read in the pbmc3k Seurat object.
+```{r}
+s <- readRDS('/home/idies/workspace/practical_genomics/day4/pbmc3k_final.rds')
+```
+
+In this vignette, we are going to use the top 10 PCs and the cell clusters identified by Seurat to reconstruct the pseudotime. In real practice, TSCAN can accept any low-dimensional representations (e.g., PCA, UMAP, t-SNE, diffusion map) and cell clusters from any clustering method (e.g., Louvain clustering, k-means, hierarchical clustering), as long as the input follows the desired format.
+
+Here we directly extract the top 10 PCs from the Seurat object. In real practice, the low-dimensional representation should be a numeric matrix where each row is a cell and each column is a reduced dimension. Row names of the matrix should be the cell names.
+
+```{r}
+dr <- Embeddings(s, reduction = "pca")[,1:10]
+str(dr)
+```
+You can also use t-SNE or UMAP. For example, to extract UMAP coordinates from the Seurat object:
+```{r}
+dr_umap <- Embeddings(s, reduction = "umap")
+str(dr_umap)
+```
+Next, the cell clustering from Seurat can be extracted by:
+
+```{r}
+clu <- Idents(s)
+table(clu)
+```
+
+Finally, we also extract the normalized gene expression matrix for plotting and testing single gene dynamic patterns.
+
+```{r}
+mat <- s@assays$RNA@data
+```
+
+## Identify the desired trajectory
+
+A common way to identify the trajectory is to visually inspect the PCA or UMAP plot and find neibouring clusters that are involved in a continuous biological process. In this example, we first inspect the UMAP plot:
+
+```{r}
+DimPlot(s, reduction = "umap", label = TRUE, pt.size = 0.5) + NoLegend()
+```
+
+In the T cell compartment, we notice two clusters, naive CD4 T cells and memory CD4 T cells, that are close to each other on the UMAP. Biologically, we know naive T cells can differentiate into memory T cells in T cell activation process. So naive CD4 T cells to memory CD4 T cells is a possible cell trajectory.
+
+## Construct pseudotime with TSCAN
+
+We use guided_tscan function to obtain the pseudotime trajectory from naive CD4 T cells to memory CD4 T cells. It requires three inputs: the low-dimensional representation (dr), the cell clustering (clu), and the desired order of cell clusters to form pseudotime (cluorder). For example, the following code contrusts a pseudotime ordering from naive CD4 T cells to memory CD4 T cells:
+```{r}
+ord <- guided_tscan(dr=dr,clu=clu,cluorder=c('Naive CD4 T','Memory CD4 T'))
+```
+
+The output of the function is a character vector of cell ordering:
+```{r}
+head(ord)
+str(ord)
+```
+
+## Study gene expression dynamics along pseudotime
+
+Once we obtained the pseudotime cell ordering, the next step is to study how gene expression changes dynamically along pseudotime. The key genes driving the pseudotime trajectory will give us deeper insights of the underlying biological process.
+
+First, we need to identify the genes that have significant dynamic changing pattern along pseudotime using the difftest function based on generalized additive models (GAM). This function takes some time to run on all genes. For simplicity here we only run the tests on all genes whose names start with 'IL'.
+```{r}
+res <- difftest(mat[grep('^IL',rownames(s)),],ord)
+head(res)
+```
+
+We noticed that IL32 is the top differential gene. Let's further explore its gene expression pattern along pseudotime.
+
+```{r}
+genedynamics(mat['IL32',],ord)
+```
+
+We can see that the expression of IL32 does have a significant increasing pattern, which agrees with previous literature that its expression increases after T cells are activated (See: https://www.ncbi.nlm.nih.gov/gene/9235).
+
+## Pseudotime analysis for multiple samples
+
+This vignette only focuses on pseudotime analysis for one sample. If there are multiple samples in your dataset (e.g., multiple human patients or mouse subjects), the pseudotime needs to be constructed on the integrated space. See: https://satijalab.org/seurat/articles/integration_introduction.html
+
+The procedure of pseudotime construction is the same as described in this vignette. However, the differential test and the visualization of single gene expression needs to be done by Lamian, a statistical framework for differential pseudotime analysis with multiple single-cell RNA-seq samples. Please refer to the preprint https://www.biorxiv.org/content/10.1101/2021.07.10.451910v1 and the software tool https://github.com/Winnie09/Lamian. 
+
+## Session info
+```{r}
+sessionInfo()
+```
