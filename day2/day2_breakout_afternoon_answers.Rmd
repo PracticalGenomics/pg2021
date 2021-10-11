@@ -1,0 +1,54 @@
+---
+title: "day2_breakout_afternoon_answers"
+author: "Sarah Wheelan"
+date: "10/4/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(scRNAseq)
+library(scater)
+library(scran)
+library(DropletUtils)
+library(DropletTestFiles)
+library(celldex)
+library(SingleR)
+```
+
+```{r}
+ load("/home/idies/workspace/practical_genomics/day2/sce.bone.rda")
+ bcrank <- barcodeRanks(counts(sce.bone))
+ plot(bcrank$rank, bcrank$total, log="xy",xlab="Rank", ylab="Total UMI count", cex.lab=1.2)
+ empty <- emptyDrops(counts(sce.bone))
+ sce.bone <- sce.bone[,which(empty$FDR <= 0.001)]
+ is.mito <- which(rowData(sce.bone)$Chr=="MT")
+ sce.bone <- addPerCellQC(sce.bone, subsets=list(Mito=is.mito))
+ qc <- quickPerCellQC(colData(sce.bone), sub.fields="subsets_Mito_percent")
+ sce.bone <- sce.bone[,!qc$discard]
+ clust.bone <- quickCluster(sce.bone)
+ sce.bone <- computeSumFactors(sce.bone, cluster=clust.bone)
+ sce.bone <- logNormCounts(sce.bone)
+ var.bone <- modelGeneVar(sce.bone)
+ hvg.bone <- getTopHVGs(var.bone, n=2000)
+ sce.bone.hvg <- sce.bone[hvg.bone,]
+ set.seed(100)
+ sce.bone.hvg <- runPCA(sce.bone.hvg)
+ percent.var <- attr(reducedDim(sce.bone.hvg), "percentVar")
+ chosen.elbow <- PCAtools::findElbowPoint(percent.var)
+ reducedDim(sce.bone.hvg) <- reducedDim(sce.bone.hvg)[,1:chosen.elbow]
+ g <- buildSNNGraph(sce.bone.hvg, use.dimred="PCA")
+ clust.bone <- igraph::cluster_walktrap(g)$membership
+ colLabels(sce.bone.hvg) <- clust.bone
+ set.seed(100)
+ sce.bone.hvg <- runTSNE(sce.bone.hvg, dimred="PCA")
+ plotReducedDim(sce.bone.hvg, dimred="TSNE", colour_by="label")
+ set.seed(100)
+ sce.bone.hvg <- runUMAP(sce.bone.hvg, dimred="PCA")
+ plotReducedDim(sce.bone.hvg, dimred="UMAP", colour_by="label")
+ markers.bone <- findMarkers(sce.bone.hvg)
+ hpc <- HumanPrimaryCellAtlasData()
+ pred <- SingleR(test=sce.bone.hvg, ref=hpc, labels=hpc$label.main)
+ colLabels(sce.bone.hvg) <- pred$labels
+ plotReducedDim(sce.bone.hvg, dimred="TSNE", colour_by="label")
+ ```

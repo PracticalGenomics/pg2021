@@ -1,0 +1,51 @@
+---
+title: "Morning breakout answers"
+author: "Sarah Wheelan"
+date: "10/4/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(scRNAseq)
+library(scater)
+library(scran)
+library(DropletUtils)
+library(DropletTestFiles)
+```
+
+```{r}
+sce.zeisel <- ZeiselBrainData()
+sce.zeisel <- aggregateAcrossFeatures(sce.zeisel, id=sub("_loc[0-9]+$", "", rownames(sce.zeisel)))
+is.mito <- which(rowData(sce.zeisel)$featureType=="mito")
+bcrank <- barcodeRanks(counts(sce.zeisel))
+plot(bcrank$rank, bcrank$total, log="xy",xlab="Rank", ylab="Total UMI count", cex.lab=1.2)
+sce.zeisel <- addPerCellQC(sce.zeisel, subsets=list(Mito=is.mito))
+qc <- quickPerCellQC(colData(sce.zeisel), sub.fields="subsets_Mito_percent")
+sce.zeisel <- sce.zeisel[,!qc$discard]
+sce.zeisel <- computeSpikeFactors(sce.zeisel, "ERCC") 
+sce.zeisel <- logNormCounts(sce.zeisel)
+var.zeisel <- modelGeneVar(sce.zeisel)
+hvg.zeisel <- getTopHVGs(var.zeisel, n=2000)
+sce.zeisel.hvg <- sce.zeisel[hvg.zeisel,]
+set.seed(100)
+sce.zeisel.hvg <- runPCA(sce.zeisel.hvg)
+percent.var <- attr(reducedDim(sce.zeisel.hvg), "percentVar")
+plot(percent.var, xlab="PC", ylab="Variance explained (%)")
+chosen.elbow <- PCAtools::findElbowPoint(percent.var)
+reducedDim(sce.zeisel.hvg) <- reducedDim(sce.zeisel.hvg)[,1:chosen.elbow]
+set.seed(100)
+sce.zeisel.hvg <- runTSNE(sce.zeisel.hvg, dimred="PCA")
+plotReducedDim(sce.zeisel.hvg, dimred="TSNE")
+set.seed(100)
+sce.zeisel.hvg <- runTSNE(sce.zeisel.hvg, dimred="PCA", perplexity=50)
+plotReducedDim(sce.zeisel.hvg, dimred="TSNE")
+set.seed(100)
+sce.zeisel.hvg <- runUMAP(sce.zeisel.hvg, dimred="PCA")
+plotReducedDim(sce.zeisel.hvg, dimred="UMAP")
+g <- buildSNNGraph(sce.zeisel.hvg, use.dimred = 'PCA')
+clust <- igraph::cluster_walktrap(g)$membership
+colLabels(sce.zeisel.hvg) <- factor(clust)
+plotReducedDim(sce.zeisel.hvg, "TSNE", colour_by="label")
+plotReducedDim(sce.zeisel.hvg, dimred="UMAP", colour_by="label")
+```

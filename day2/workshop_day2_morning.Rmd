@@ -1,0 +1,164 @@
+---
+title: "scQC"
+author: "Sarah Wheelan"
+date: "9/7/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(scRNAseq)
+library(AnnotationHub)
+library(scater)
+library(org.Mm.eg.db)
+library(scran)
+library(DropletUtils)
+library(DropletTestFiles)
+```
+
+## Load in a scRNA-seq dataset
+
+```{r}
+raw.path <- getTestFile("tenx-2.1.0-pbmc4k/1.0.0/raw.tar.gz")
+out.path <- file.path(tempdir(), "pbmc4k")
+untar(raw.path, exdir=out.path)
+fname <- file.path(out.path, "raw_gene_bc_matrices/GRCh38")
+sce.pbmc <- read10xCounts(fname, col.names=TRUE)
+sce.pbmc
+```
+
+## Retrieve chromosomal locations for genes using the Ensembl ID
+
+```{r}
+ens.hs.v104 <- AnnotationHub()[["AH89426"]]
+chr.loc <- mapIds(ens.hs.v104, keys=rownames(sce.pbmc), keytype="GENEID", column="SEQNAME")
+rownames(sce.pbmc) <- rowData(sce.pbmc)$Symbol
+is.mito <- which(chr.loc=="MT")
+```
+
+## Empty droplets
+
+Empty droplets are a problem for many single cell platforms. These will be apparent as barcodes with few counts, and should be removed.
+
+Plotting the distribution of counts per barcode reveals a sharp transition between barcodes with high counts (presumably cells) and barcodes with low counts (presumably empty).
+
+```{r}
+bcrank <- barcodeRanks(counts(sce.pbmc))
+plot(bcrank$rank, bcrank$total, log="xy",xlab="Rank", ylab="Total UMI count", cex.lab=1.2)
+```
+
+Use the emptyDrops function to distinguish between droplets containing cells and droplets containing only ambient RNA.
+
+```{r}
+empty <- emptyDrops(counts(sce.pbmc))
+summary(empty$FDR <= 0.001)
+sce.pbmc <- sce.pbmc[,which(empty$FDR <= 0.001)]
+```
+
+## Calculate QC metrics
+
+```{r}
+df <- perCellQCMetrics(sce.pbmc, subsets=list(Mito=is.mito))
+df
+```
+
+## Using adaptive thresholds
+
+```{r}
+qc.lib <- isOutlier(df$sum, log=TRUE, type="lower")
+qc.nexprs <- isOutlier(df$detected, log=TRUE, type="lower")
+qc.mito <- isOutlier(df$subsets_Mito_percent, type="higher")
+discard <- qc.lib | qc.nexprs | qc.mito
+table(discard)
+```
+
+You can use the quickPerCellQC function to do all of this in one step:
+
+```{r}
+reasons <- quickPerCellQC(df, sub.fields=c("subsets_Mito_percent"))
+reasons
+table(reasons$discard)
+```
+
+Make sure we're not discarding metabolically active cells:
+
+```{r}
+plot(df$sum, df$subsets_Mito_percent)
+```
+
+Finally, we can subset the original single cell experiment object, retaining the rows (cells) that we don't want to discard
+
+```{r}
+sce.pbmc <- sce.pbmc[,!reasons$discard]
+```
+
+## Normalization
+
+Normalization typically involves dividing gene expression by the library size for each cell. Calculate a library size factor that has mean 1 across all cells, and divide by this.
+
+```{r}
+lib.sf.pbmc <- librarySizeFactors(sce.pbmc)
+summary(lib.sf.pbmc)
+```
+
+You can also normalize by spike-ins, if they are present. The assumption is that the spike-ins are the same for each library.
+
+Normalization by deconvolution is another method for normalizing single cell data. This involves pooling cells to get accurate size factors for the pools using methods from bulk RNA-seq data analysis, which are then deconvolved into cell-based factors.
+
+```{r}
+set.seed(100)
+clust.pbmc <- quickCluster(sce.pbmc)
+table(clust.pbmc)
+deconv.sf.pbmc <- calculateSumFactors(sce.pbmc, cluster=clust.pbmc)
+plot(lib.sf.pbmc, deconv.sf.pbmc, xlab="Library size factor", ylab="Deconvolution size factor", log='xy', pch=16)
+```
+
+Finally, we divide the gene expression by the size factor for each cell and take the log. This function adds a pseudocount of 1 to avoid undefined values but still preserve the sparsity of the matrix.
+
+```{r}
+sce.pbmc <- computeSumFactors(sce.pbmc, cluster=clust.pbmc) 
+sce.pbmc <- logNormCounts(sce.pbmc)
+```
+
+## Feature selection
+
+The simplest approach is to compute the variance of each gene across the cell population. modelGeneVar fits a trend to the variance by abundance, as the abundance of a gene affects its variance.
+
+```{r}
+var.pbmc <- modelGeneVar(sce.pbmc)
+fit.pbmc <- metadata(var.pbmc)
+plot(fit.pbmc$mean, fit.pbmc$var, xlab="mean log expression", ylab="variance log expression")
+curve(fit.pbmc$trend(x), col="blue", lwd=2, add=TRUE)
+```
+
+Now we need to select the highly variable genes. This can be done by picking the top 1000 most variable genes:
+
+```{r}
+hvg.pbmc <- getTopHVGs(var.pbmc, n=1000)
+str(hvg.pbmc)
+```
+
+This can also be done by picking the top genes by p-value:
+
+```{r}
+hvg.pbmc.2 <- getTopHVGs(var.pbmc, fdr.threshold=0.05)
+str(hvg.pbmc.2)
+```
+
+Alternatively, we can keep all genes above the trend:
+
+```{r}
+hvg.pbmc.3 <- getTopHVGs(var.pbmc, var.threshold=0)
+str(hvg.pbmc.3)
+```
+
+Now we will subset the single cell experiment object to just the HVGs, and we'll store the original data inside the object as an alternative experiment.
+
+```{r}
+sce.pbmc.hvg <- sce.pbmc[hvg.pbmc,]
+altExp(sce.pbmc.hvg, "original") <- sce.pbmc
+```
+
+```{r}
+sessionInfo()
+```

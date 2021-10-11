@@ -1,0 +1,231 @@
+---
+title: "Marker genes and reference cell atlases"
+author: "Sarah Wheelan"
+date: "9/15/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(scran)
+library(celldex)
+library(SingleR)
+library(scRNAseq)
+library(scater)
+library(AnnotationHub)
+```
+
+## Marker gene detection
+
+The findMarkers function does pairwise t-tests between all pairs of clusters and returns a list of data frames.
+
+```{r}
+markers.pbmc <- findMarkers(sce.pbmc.hvg)
+markers.pbmc
+```
+
+Let's look at the markers for cluster #1:
+
+```{r}
+interesting <- markers.pbmc[[1]]
+interesting
+```
+
+Examine the top 6 genes from each pairwise comparison:
+
+```{r}
+best.set <- interesting[interesting$Top <= 6,]
+logFCs <- getMarkerEffects(best.set)
+pheatmap(logFCs, breaks=seq(-5, 5, length.out=101))
+```
+
+Based on the upregulated genes, cluster 1 may be cytotoxic T cells. By default, findMarkers will give a low p-value to genes that are differentially expressed in at least 1 comparison. We can also specify that we want just upregulated genes, in which case a one-sided t test is performed. We could be more stringent:
+
+```{r}
+markers.pbmc.up <- findMarkers(sce.pbmc.hvg, pval.type="all", direction="up")
+interesting.up <- markers.pbmc.up[[1]]
+interesting.up[1:10,1:4]
+```
+
+This may be too stringent as it would discard genes that are upregulated in more than one cluster. We can ask for genes that are upregulated in at least 50% of the clusters:
+
+```{r}
+markers.pbmc.up2 <- findMarkers(sce.pbmc.hvg, pval.type="some", direction="up")
+interesting.up2 <- markers.pbmc.up2[[1]]
+interesting.up2[1:10,1:4]
+```
+
+We could also condition on log fold change, requiring that it be greater than 1:
+
+```{r}
+markers.pbmc.up3 <- findMarkers(sce.pbmc.hvg, direction="up", lfc=1)
+interesting.up3 <- markers.pbmc.up3[[1]]
+interesting.up3[1:10,1:4]
+```
+
+We could use a Wilcoxon or binomial test for significance. The binomial test may be more stringent and the Wilcoxon may be more appropriate when clusters have different numbers of cells. The Wilcoxon test also directly tests what we're interested in, which is the separation of clusters.
+
+```{r}
+combined <- multiMarkerStats(
+    t=findMarkers(sce.pbmc.hvg, direction="up"),
+    wilcox=findMarkers(sce.pbmc.hvg, test="wilcox", direction="up"),
+    binom=findMarkers(sce.pbmc.hvg, test="binom", direction="up")
+)
+colnames(combined[[1]])
+```
+
+```{r}
+combined[[1]][1:10, 1:9]
+```
+
+## Cell type annotation
+
+From curated reference datasets:
+
+```{r}
+ref <- BlueprintEncodeData()
+ref
+```
+
+This is a summarized experiment object containing gene expression values and cell labels. We'll use the SingleR function to annotate cell types in sce.pbmc.hvg, using this as a reference.
+
+```{r}
+pred <- SingleR(test=sce.pbmc.hvg, ref=ref, labels=ref$label.main)
+table(pred$labels)
+```
+
+We can inspect the labels using a heat map.
+
+```{r}
+plotScoreHeatmap(pred)
+```
+
+We can also look at how the labels correspond to clusters:
+
+```{r}
+tab <- table(Assigned=pred$pruned.labels, Cluster=colLabels(sce.pbmc.hvg))
+pheatmap(log2(tab+10), color=colorRampPalette(c("white", "blue"))(101))
+```
+
+We can see that CD4+ and CD8+ T-cells are not well resolved by our clustering.
+
+We can also use a labeled scRNAseq experiment to annotate an unlabeled experiment. We'll use two pancreas datasets as an example. The Muraro pancreas dataset has labels; the Grun dataset does not.
+
+```{r}
+sce.mur <- MuraroPancreasData()
+sce.mur <- sce.mur[,!is.na(sce.mur$label) & sce.mur$label!="unclear"] 
+sce.mur <- logNormCounts(sce.mur)
+sce.mur
+```
+```{r}
+table(sce.mur$label)
+```
+
+Now we'll load in the Grun dataset and do a quick QC and log normalization. This dataset has batches and ERCC spikeins:
+
+```{r}
+sce.grun <- GrunPancreasData()
+sce.grun <- addPerCellQC(sce.grun)
+qc <- quickPerCellQC(colData(sce.grun), percent_subsets="altexps_ERCC_percent", batch=sce.grun$donor, subset=sce.grun$donor %in% c("D17", "D7", "D2"))
+sce.grun <- sce.grun[,!qc$discard]
+sce.grun <- logNormCounts(sce.grun)
+sce.grun
+```
+
+And we'll run SingleR as before, but using the Wilcoxon rank sum method:
+
+```{r}
+pred.grun <- SingleR(test=sce.grun, ref=sce.mur, labels=sce.mur$label, de.method="wilcox")
+table(pred.grun$labels)
+```
+
+By default, SingleR uses the top 10 differentially expressed genes per pairwise comparison. We can get a more robust annotation using more genes:
+
+```{r}
+pred.grun <- SingleR(test=sce.grun, ref=sce.mur, labels=sce.mur$label, de.method="wilcox", de.n=50)
+table(pred.grun$labels)
+```
+
+We can also construct custom gene lists and use those for annotation:
+
+```{r}
+out <- pairwiseBinom(counts(sce.mur), sce.mur$label, direction="up")
+markers <- getTopMarkers(out$statistics, out$pairs, n=10)
+```
+
+Now we can use the markers object in SingleR annotation:
+
+```{r}
+pred.grun2 <- SingleR(test=sce.grun, ref=sce.mur, labels=sce.mur$label, genes=markers)
+table(pred.grun2$labels)
+```
+
+We can also simply supply a character list of genes, which just for example purposes we will get from the markers but could come from anywhere:
+
+```{r}
+label.markers <- lapply(markers, unlist)
+label.markers <- lapply(label.markers, unique)
+str(label.markers)
+```
+
+SingleR can take these gene lists:
+
+```{r}
+pred.grun3 <- SingleR(test=sce.grun, ref=sce.mur, labels=sce.mur$label, genes=label.markers)
+table(pred.grun3$labels)
+```
+
+We can also do pseudo-bulk aggregation by performing k-means clustering within each label and deriving gene expression values per label.
+
+```{r}
+set.seed(100)
+pred.grun4 <- SingleR(test=sce.grun, ref=sce.mur, labels=sce.mur$label, de.method="wilcox", aggr.ref=TRUE)
+table(pred.grun4$labels)
+```
+
+We can get a sense of how good the annotation is by looking at the correlation-based scores that SingleR returns. Ideally one label has a much higher score than any other.
+
+```{r}
+pred.grun$scores[1:10,]
+```
+
+Plotting the scores as a heat map is helpful:
+
+```{r}
+plotScoreHeatmap(pred.grun)
+```
+
+The pruned.labels object inside of pred.grun has information about which labels were discarded due to low deltas between different labels for that cell. The field is NA for labels that are discarded.
+
+```{r}
+to.remove <- is.na(pred.grun$pruned.labels)
+table(Label=pred.grun$labels, Removed=to.remove)
+```
+
+The deltas can be visualized easily, in case you want to set a fixed threshold:
+
+```{r}
+plotDeltaDistribution(pred.grun)
+```
+
+We can also look at the expression of marker genes for each label in the dataset:
+
+```{r}
+all.markers <- metadata(pred.grun)$de.genes
+beta.markers <- unique(unlist(all.markers$beta))
+sce.grun$labels <- pred.grun$labels
+plotHeatmap(sce.grun, order_columns_by="labels", features=beta.markers)
+```
+
+This is a lot of genes. We can take the top 20 markers instead:
+
+```{r}
+empirical.markers <- findMarkers(sce.grun, sce.grun$labels, direction="up")
+m <- match(beta.markers, rownames(empirical.markers$beta))
+m <- beta.markers[rank(m) <= 20]
+plotHeatmap(sce.grun, order_columns_by="labels", features=m)
+```
+
+```{r}
+sessionInfo()
+```

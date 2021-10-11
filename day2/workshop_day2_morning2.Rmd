@@ -1,0 +1,150 @@
+---
+title: "Dimensionality reduction"
+author: "Sarah Wheelan"
+date: "9/13/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(scater)
+library(scran)
+library(bluster)
+library(pheatmap)
+# requires PCAtools package but we won't load this library
+# requires igraph package but we won't load this library
+# requires viridis package but we won't load this library
+```
+
+## Dimensionality reduction
+
+We will use PCA to reduce the dimensions of the expression matrix, both for plotting and downstream analysis.
+
+```{r}
+set.seed(100)
+sce.pbmc.hvg <- runPCA(sce.pbmc.hvg)
+```
+
+Choosing the number of principal components to keep:
+
+```{r}
+percent.var <- attr(reducedDim(sce.pbmc.hvg), "percentVar")
+plot(percent.var, xlab="PC", ylab="Variance explained (%)")
+```
+
+You can find the "elbow" in this plot to determine a cutoff for the number of PCs:
+
+```{r}
+chosen.elbow <- PCAtools::findElbowPoint(percent.var)
+chosen.elbow
+reducedDim(sce.pbmc.hvg) <- reducedDim(sce.pbmc.hvg)[,1:chosen.elbow]
+sce.pbmc.hvg
+```
+
+We can plot the first two PCs:
+
+```{r}
+plotReducedDim(sce.pbmc.hvg, dimred="PCA")
+```
+
+Since PCA is a linear technique, it cannot embed multiple dimensions into the first 2 PCs. We could plot several of the first PCs against each other in pairwise plots:
+
+```{r}
+plotReducedDim(sce.pbmc.hvg, dimred="PCA", ncomponents=4)
+```
+
+t-SNE plotting--run t-SNE on the top PCs:
+
+```{r}
+set.seed(100)
+sce.pbmc.hvg <- runTSNE(sce.pbmc.hvg, dimred="PCA")
+plotReducedDim(sce.pbmc.hvg, dimred="TSNE")
+```
+
+t-SNE has a parameter, perplexity, that determines the target number of neighbors for each point. Perplexity is usually set between 5 and 50 (default 30) and it can affect the plot. Below is the plot for t-SNE with perplexity 5.
+
+```{r}
+set.seed(100)
+sce.pbmc.hvg <- runTSNE(sce.pbmc.hvg, dimred="PCA", perplexity=5)
+plotReducedDim(sce.pbmc.hvg, dimred="TSNE")
+```
+
+And the same for perplexity 50:
+```{r}
+set.seed(100)
+sce.pbmc.hvg <- runTSNE(sce.pbmc.hvg, dimred="PCA", perplexity=50)
+plotReducedDim(sce.pbmc.hvg, dimred="TSNE")
+```
+
+UMAP (uniform manifold approximation and projection) is another nonlinear dimension reduction method, that attempts to preserve more of the global structure than t-SNE.
+
+```{r}
+set.seed(100)
+sce.pbmc.hvg <- runUMAP(sce.pbmc.hvg, dimred="PCA")
+plotReducedDim(sce.pbmc.hvg, dimred="UMAP")
+```
+
+## Clustering
+
+Clustering is an unsupervised learning procedure that is used to partition the high-dimensional expression space into groups of cells with similar expression profiles. There are many clustering methods.
+
+Graph-based clustering is based on nearest neighbors. Each node in the graph is a cell that is connected by edges to its nearest neighbors, and edges are weighted by the similarity of the cells involved. We then run an algorithm to determine the communities of cells, based on the graph.
+
+```{r}
+g <- buildSNNGraph(sce.pbmc.hvg, use.dimred = 'PCA')
+clust <- igraph::cluster_walktrap(g)$membership
+table(clust)
+```
+
+We can now color our t-SNE plot by cluster.
+
+```{r}
+colLabels(sce.pbmc.hvg) <- factor(clust)
+plotReducedDim(sce.pbmc.hvg, "TSNE", colour_by="label")
+```
+
+We can change k, the number of nearest neighbors. Smaller values of k give more granularity and more clusters. Default is 10.
+
+```{r}
+g.5 <- buildSNNGraph(sce.pbmc.hvg, k=5, use.dimred = 'PCA')
+clust.5 <- igraph::cluster_walktrap(g.5)$membership
+table(clust.5)
+```
+
+same for k=50
+
+```{r}
+g.50 <- buildSNNGraph(sce.pbmc.hvg, k=50, use.dimred="PCA")
+clust.50 <- igraph::cluster_walktrap(g.50)$membership
+table(clust.50)
+```
+
+Now we'll examine the clustering. One metric is modularity, which is the difference between the observed total weight of edges between nodes in the same cluster and the expected total weight if edge weights were randomly distributed across all pairs of nodes.
+
+```{r}
+ratio <- pairwiseModularity(g, clust, as.ratio=TRUE)
+```
+
+This gives a matrix of numbers with clusters in rows and columns and the modularity value in each entry. We can plot it as a heat map:
+
+```{r}
+pheatmap(log2(ratio+1), cluster_rows=FALSE, cluster_cols=FALSE, color=colorRampPalette(c("white", "blue"))(100))
+```
+
+Most of the weight is on the diagonal, indicating that clusters are well separated.
+
+We could also perform k-means clustering or hierarchical clustering.
+
+We can compare clustering methods easily with a heat map:
+
+```{r}
+clust.louvain <- igraph::cluster_louvain(g)$membership
+tab <- table(Walktrap=clust, Louvain=clust.louvain)
+tab <- tab/rowSums(tab)
+pheatmap(tab, color=viridis::viridis(100), cluster_cols=FALSE, cluster_rows=FALSE)
+```
+
+
+```{r}
+sessionInfo()
+```

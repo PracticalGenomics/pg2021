@@ -1,0 +1,174 @@
+---
+title: "Dimension Reduction, Clustering and PCA \n A Hands-on Introduction"
+author: "Leslie Cope"
+date: "9/28/2021"
+output:
+  html_document:
+    toc: yes
+    df_print: paged
+  html_notebook:
+    toc: yes
+    toc_float: yes
+---
+
+## Dimension reduction and cluster analysis
+Dimension reduction and cluster analysis are distinct tasks but related in that they 
+1) are often performed at the same time, to better understand a dataset
+2) depend on many of the same mathematical principles
+
+## Dimension Reduction
+The point of dimension reduction is simply to reduce a high-dimensional dataset into a more managable (i.e easier to visualize, and quicker to compute on) lower-dimensional space.
+
+There are two main approaches to dimension reduction:
+1) Simple methods like PCA or even picking a few genes of interest select existing dimensions in the data. Think of them as simple projections, just like taking a 2D photo of a 3D object.
+
+2) Methods like T-SNE and UMAP don't  literally preserve the original data, but rather try to find the lower dimensional representation that best preserves the original relationships between samples/ells.  
+
+In this exercise, we will try out PCA, which works by rotating the high dimensional object into a new orientation (i.e. new dimensions) such that first few dimensions account for most the the differences we see between samples in the original data. That is it tries to preserve as much of the original sample-to-sample variation in as few dimensions as possible. 
+
+Its really helpful to start in a situation where you can check results against your knowledge and intuition. Accordingly, this exercise uses nutrition data for various breakfast cereals.
+
+
+
+```{r cerealData, echo=F}
+# load the cereals data 
+# This data is from https://cran.r-project.org/web/packages/lgrdata/index.html
+# Cleaned up to remove a few missing data values
+load("/home/idies/workspace/practical_genomics/day2/cereals.Rda")
+
+
+### make a matrix of nutrition data. 
+#The first 3 columns contain character-valued variables
+### name of cereal
+### abbreviation of manufacturers name
+### H/C indicating whether eaten hot or cold. 
+nutrition=as.matrix(cereals[,4:12])
+### with cereal names as rownames
+rownames(nutrition)=cereals$Cereal.name
+```
+
+Take a quick look at a few variables to make sure we understand the data.
+
+```{r sugar_and_bran, echo=F}
+#### look at cereals that should have very different sugar levels
+nutrition["Froot_Loops","sugars"]
+nutrition["Shredded_Wheat","sugars"]
+
+### and different fiber levels
+nutrition["100%_Bran","fiber"]
+nutrition["Rice_Chex","fiber"]
+
+```
+
+
+## Perform principle components analysis
+There are various functions in R for doing this, and you have already seen that specialized packages like **seurat** may have their own implementations.  We are using the **prcomp()** function from base R.
+
+```{r prcomp}
+pca.fit=prcomp(nutrition)
+pca=predict(pca.fit)
+plot(pca,pch=16, cex=0.5)
+text(pca,rownames(pca),cex=.5)
+```
+
+
+## Coloring by variable
+While **geneXcell** and **seurat** have built in functions for coloring PCA plots by gene, cluster, and so on, its not quite so easy in basic R.  The following code chunk provides a function for turning any variable into a vector of colors.Yellow will correspond to low values and blue to high values of the variable.
+
+```{r, colorRamp}
+makeCols=function(x,ncols=5){## x is a vector that will be used to generate colors. 
+ybPal <- colorRampPalette(c('yellow','blue'))
+cols <- ybPal(ncols)[as.numeric(cut(x,breaks = ncols))]
+return(cols)}
+```
+
+And try it out, using a few of the nutritional variables
+
+```{r colorPlots}
+plot(pca,pch=16, cex=2,col=makeCols(nutrition[,"sugars"]),main="Sugar")
+plot(pca,pch=16, cex=2,col=makeCols(nutrition[,"calories"]),main="Calories")
+plot(pca,pch=16, cex=2,col=makeCols(nutrition[,"sodium"]),main="Sodium")
+plot(nutrition[,"sodium"],pca[,1],pch=16,xlab="Sodium",ylab="PC1")
+
+
+```
+
+PC1 is highly correlated with sodium levels. There are two possibilities here:
+
++ We did everything right and sodium is a perfect *marker* of some multifactorial nutritional factor
+
++ We didn't scale the data appropriately, and because sodium has such a wide range of possible values, it is the single biggest source of variation in the unscaled data. 
+
+So look at the variances for each variable.
+
+```{r variances}
+apply(nutrition,2,var)
+
+```
+
+## We are going to scale each variable first, so that all the data 
+
+Repeat the above steps with that modification
+
+```{r prcompScale}
+
+#adding an "S" to each name to keep scaled version separate
+pca.fitS=prcomp(nutrition,scale=T)
+pcaS=predict(pca.fitS)
+plot(pcaS,pch=16, cex=0.5)
+text(pcaS,rownames(pca),cex=.5)
+
+plot(pcaS,pch=16, cex=2,col=makeCols(nutrition[,"sugars"]),main="Sugars, scaled data")
+plot(pcaS,pch=16, cex=2,col=makeCols(nutrition[,"calories"]),main="Calories, scaled data")
+plot(pcaS,pch=16, cex=2,col=makeCols(nutrition[,"sodium"]),main="Sodium, scaled data")
+plot(nutrition[,"sodium"],pcaS[,1],pch=16,xlab="Sodium",ylab="PC1",main="scaled data")
+```
+
+
+
+### How many components?
+One standard diagnostic tool is called the *broken stick plot*, which shows the component number on the x-axis vs the variance explained by that component on the y-axis.  it classically looks like a broken stick with the break indicating the point where additional components deliver diminishing returns. This one looks we hae about 4 strong components. 
+
+```{r otherPC}
+sdevs=pca.fitS$sdev   ### get the std dev for each component
+vars=sdevs^2  ### square for variances
+pctVarExp=vars/sum(vars)*100  ### standardize and multiple by 100 to get percent variance explained. normalize a
+
+plot(1:9,pctVarExp,type="l")
+abline(h=100/9,lty=3)   #### the line shows the expected variance explained by any component if data is random. 
+```
+
+We can go ahead and use our plotting tools to look at other components as well.
+
+
+```{r visualizeOtherComponents}
+
+plot(pcaS[,c(1,3)],pch=16)
+abline()
+text(pcaS[,c(1,3)],rownames(pca),cex=.5)
+
+plot(pcaS[,c(2,3)],pch=16)
+text(pcaS[,c(2,3)],rownames(pca),cex=.5)
+
+plot(pcaS[,c(1,4)],pch=16)
+text(pca[,c(1,4)],rownames(pca),cex=.5)
+```
+
+
+## Clustering
+The point of clustering is to find groups within the data such that within each group, samples/cells are as homogoneous as possible, and groups are as distinct as possible. The resulting clusters can help you confirm that your data includes the range of cell types you expect, as well as reveal important, previously unknown subgroups. 
+
+There are numerous methods, all with the same goals of identifying distinct groups. We illustrate here with a simple method called k-means clustering.
+
+K-means requires us to choose the number of groups in advance.  We will use K=4 in the next code chunk on the grounds that 1) 4 was a plausible number of PCs, and 2) maybe there are about 4 different classes of cereal, call them: healthy, fiberous, sugary, and ordinary.
+
+```{r cluster}
+
+scaleData=apply(nutrition,2,scale) ## scales the data as in PCA
+clusts=kmeans(scaleData,centers=4)
+groups=clusts$cluster
+groups
+plot(pcaS,pch=16, cex=2,col=groups,main="K-means clusts, scaled data")
+
+```
+
