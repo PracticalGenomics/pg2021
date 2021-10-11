@@ -29,7 +29,7 @@
 |:-----:|---------------------------------------------------------------------|-------------------------------------------------------------------------------------------------|
 |  8:45 | Announcements                                                       | [[slides](https://docs.google.com/presentation/d/11orT5ZPTHm07fCY7JkOTuLnDgRKLqlEFV7pyG_D5sG8)] |
 |  9:00 | QC, normalization, feature selection                                | [[slides](https://docs.google.com/presentation/d/14cQo6h9dp0QKXFHrp-CYgaNO1s4-t0AKnJqqqDrnh3c)][[Rmd](https://github.com/PracticalGenomics/pg2021/blob/master/day2/workshop_day2_morning.Rmd)] |
-| 10:45 | Dimensionality reduction, visualization and clustering              | [[slides](https://docs.google.com/presentation/d/1Vh3fcE0DrhRJjVIT8wLGUtK9_zu1w2lzN0sCHPzX6l0)]][[Rmd](https://github.com/PracticalGenomics/pg2021/blob/master/day2/workshop_day2_morning2.Rmd) |
+| 10:45 | Dimensionality reduction, visualization and clustering              | [[slides](https://docs.google.com/presentation/d/1Vh3fcE0DrhRJjVIT8wLGUtK9_zu1w2lzN0sCHPzX6l0)]][Rmd](https://github.com/PracticalGenomics/pg2021/blob/master/day2/workshop_day2_morning2.Rmd)] |
 | 10:45 | Break                                                               |                                                                                                 |
 | 11:00 | Breakout Session                                                    | [[doc](https://docs.google.com/document/d/10hN3Cv_DStriI45xoComu7BgVtwK37jAxm1jtsPdc8w)]        |
 | 12:00 | Lunch                                                               |                                                                                                 |
