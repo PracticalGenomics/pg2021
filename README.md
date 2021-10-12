@@ -43,7 +43,6 @@
 
 | Time  | Title                                                               | Material                                                                                        |
 |:-----:|---------------------------------------------------------------------|-------------------------------------------------------------------------------------------------|
-|  8:45 | Announcements                                                       | [[slides](https://docs.google.com/presentation/d/11orT5ZPTHm07fCY7JkOTuLnDgRKLqlEFV7pyG_D5sG8)] |
 |  9:00 | Need for Integrating Multiple Datasets                       | [[slides](https://docs.google.com/presentation/d/1huBkMUHDtrO8e789F7psMJlj5FnIXQ2aDssGRuWiOQo/edit?usp=sharing)] |
 |  9:45 | Overview Integration Code                       |  |
 | 10:30| Break     | |
@@ -51,7 +50,7 @@
 | 12:00 | Lunch                                                               |                                                                                                 |
 | 01:00 | Differential Expression and Gene Set Analysis | [[slides](https://docs.google.com/presentation/d/1YF57SuKwYXou_MygbcaEdYIUMQqC2iyq4CTVJhbqpeg/edit?usp=sharing)]            |
 |  1:45 | Overview DE and GSA Code                                                               |                                                            |
-|  2:30 | Break | [[slides](https://docs.google.com/presentation/d/1pGytUDi73fRE72DvE4qXU3WrMLgtvrQg)]|
+|  2:30 | Break | |
 |  2:45 | Breakout Session                                                 |  |
 |  4:45 | Wrap-up                                                             | [[doc](https://docs.google.com/document/d/1E22vd-9CBzDHjZb2koIPIQkk_QgtEQju5sdq4kAhTN8/edit)]  |
 ## Day 4 // October 7th // Trajectory Analysis and Independent Work
