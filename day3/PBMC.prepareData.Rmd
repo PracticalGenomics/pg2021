@@ -1,0 +1,195 @@
+---
+author: "Luigi Marchionni"
+date: "9/25/2021"
+title: "IntegratingDataOsca"
+output: html_document
+---
+
+# Preliminary operations
+
+```{r compileRMD, echo=FALSE, eval=TRUE}
+### Libraries necessary for knitting
+library(rmarkdown, quietly = TRUE)
+```
+
+## Load the required general libraries for typesetting
+
+```{r setup}
+### Clean the workspace
+rm(list=ls())
+ls()
+### Load the required libraries
+library(knitr, quietly = TRUE)
+knitr::opts_chunk$set(echo = TRUE)
+### To run and output elsewhere
+knitPath <- "/home/idies/workspace/practical_genomics/day3/"
+print(knitPath)
+opts_knit$set(root.dir = knitPath) #tidy=TRUE, tidy.opts=list(width.cutoff=180))
+```
+
+## Set the correct working directory
+
+```{r}
+### Finding your current working directory
+getwd()
+### Setting the working directory (change this)
+setwd(knitPath)
+### Check working directory
+getwd()
+```
+
+# Integrating Datasets Single cell RNA seq (scRNAseq) datasets
+## Assembling data from different experiments
+
+Large scRNA-seq projects are usually generated in multiple batches due to logistical constraints. These different batches will present systematic and inherent differences in expression levels due to technical factors (e.g., different reagents, days, instruments, etc, ...), the so called “batch effects”. These are  pervasive in all omics experiments and techniques, since they can result  in major heterogeneity in the data, offuscating biologically relevant differences.
+
+Batch effects have been known for a long time, have been intensively "studied", and methods for their correction (or control of) have been devised for enabling downstream analyses. For "bulk" genomics, however, the existing methods assume similar or known cell population composition across batches and use linear models (Ritchie et al. 2015; Leek et al. 2012). These assumption do not apply to scRNAseq data, hence novel methods that do not require a priori knowledge on cell composition have been devised (Haghverdi et al. 2018; Butler et al. 2018; Lin et al. 2019).
+
+### Loading the data
+
+Now let's play around with an example: integrating two separate 10X Genomics PBMC datasets generated in two different batches. We will start by loading the datasets we will be using, which are from the `TENxPBMCData` data package.
+
+```{r, echo=TRUE, eval=FALSE}
+### Load this package: https://bioconductor.org/packages/3.12/TENxPBMCData
+### Let's load the needed packages, install it if not available
+if (!"TENxPBMCData" %in% installed.packages()[,"Package"]) {
+  library(BiocManager)
+  BiocManager::install("TENxPBMCData")
+}
+### Load the library
+library(TENxPBMCData)
+```
+
+### Preparing the data
+Let' load the datasets in put workspace, make sure they are all instances of `SingleCellExperiment` class, then prepare them using the standard procedures previously described.
+
+To this end, datasets extracted from the `TENxPBMCData` package will be separately processed prior to batch correction, which is scalable and usually more reliable (e.g., QC based on outliers and mean-variance trend fitting are more effective when performed within batches). Below we will show the code used for pre-processing, but we will not run it, since it takes some time. For our analysis we will use a pre-saved object.
+
+```{r, echo=TRUE, eval=FALSE}
+### Load ExperimentHub
+library(ExperimentHub)
+### Set a shared location for ExperimentalHub
+dir.create("/home/idies/workspace/practical_genomics/day3/cache/", showWarnings = FALSE)
+setExperimentHubOption("CACHE", "/home/idies/workspace/practical_genomics/day3/cache/")
+### Extract all datasets from the 'TENxPBMCData' package and create a list
+all.sce <- list(
+    pbmc3k=TENxPBMCData('pbmc3k'),
+    pbmc4k=TENxPBMCData('pbmc4k')
+)
+### Check
+all.sce
+### For fastness we are going to keep 1000 cells from each experiment
+### Select 500 random cells from first experiments
+set.seed(316381)
+all.sce$pbmc3k <- all.sce$pbmc3k[, sample(1:ncol(all.sce$pbmc3k), size=500)]
+### Select 500 random cells from second experiments
+set.seed(316381)
+all.sce$pbmc4k <- all.sce$pbmc4k[, sample(1:ncol(all.sce$pbmc4k), size=500)]
+### Check
+all.sce
+### For fastness we are also going to keep 15000 genes from each experiment
+### Select 2000 random cells from first experiments
+set.seed(316381)
+all.sce$pbmc3k <- all.sce$pbmc3k[sample(1:nrow(all.sce$pbmc3k), size=15000),]
+### Select 15000 random cells from second experiments
+set.seed(316381)
+all.sce$pbmc4k <- all.sce$pbmc4k[sample(1:nrow(all.sce$pbmc4k), size=15000),]
+### Check
+all.sce
+### Let's perform the quality control steps on each dataset
+### We will use the 'scater' library for this
+library(scater)
+### Create an emply list for stroing QC metrics and stats for each dataset
+### The following command will create 2 named emply lists
+stats <- high.mito <- list()
+### For each dataset, let's usa a loop to perform the needed QC
+for (n in names(all.sce)) {
+  ### Work on current dataset
+  current <- all.sce[[n]]
+  ### Get mitocondrial genes
+  is.mito <- grep("MT", rowData(current)$Symbol_TENx)
+  ### Compute QC using MT genes
+  stats[[n]] <- perCellQCMetrics(current, subsets=list(Mito=is.mito))
+  ### Detect outliers
+  high.mito[[n]] <- isOutlier(stats[[n]]$subsets_Mito_percent, type="higher")
+  ### Update
+  all.sce[[n]] <- current[,!high.mito[[n]]]
+}
+### Let's Normalize the data, making sure we leverage iterated list operations...
+all.sce <- lapply(all.sce, logNormCounts)
+### Let's model variance in each dataset (for this we will rely on the 'scran' library)
+library(scran)
+### Model variance for each dataset
+all.dec <- lapply(all.sce, modelGeneVar)
+### Identify most highly variable genes (top 10%)
+all.hvgs <- lapply(all.dec, getTopHVGs, prop=0.1)
+### Perform dimensionality reduction separately for each dataset
+### For this we will use the 'BiocSingular' package 
+library(BiocSingular)
+### Set a seed
+set.seed(10000)
+### Let's do this using the 'mapply()' approach
+### This will allow to iterate a function over lists of (paired) data and parameters
+all.sce <- mapply(FUN=runPCA, x=all.sce, subset_row=all.hvgs, 
+    MoreArgs=list(ncomponents=25, BSPARAM=RandomParam()), 
+    SIMPLIFY=FALSE)
+### Set seed again, then run tSNE
+set.seed(100000)
+all.sce <- lapply(all.sce, runTSNE, dimred="PCA")
+### Set seed again, then run UMAP
+set.seed(1000000)
+all.sce <- lapply(all.sce, runUMAP, dimred="PCA")
+### Now we can perform clustering, for each one of our dataset of interest
+for (n in names(all.sce)) {
+    g <- buildSNNGraph(all.sce[[n]], k=10, use.dimred='PCA')
+    clust <- igraph::cluster_walktrap(g)$membership
+    colLabels(all.sce[[n]])  <- factor(clust)
+}
+### Save the object
+save(all.sce, all.dec, all.hvgs, file="./PBMC.sce.small.rda")
+```
+
+Let's now load and explore the PBMC expression data (we have just SEPARATELY pre-processed).
+
+```{r}
+### Load libraries used for pre-processing just in case
+library(scater, quietly = TRUE)
+library(scran, quietly = TRUE)
+library(BiocSingular, quietly = TRUE)
+### Load the object
+load("./PBMC.sce.small.rda")
+### Check class, names, modes, structure, and more
+class(all.sce)
+names(all.sce)
+### Check individual list elements
+lapply(all.sce, class)
+### How many genes and cells
+lapply(all.sce, dim)
+```
+
+For data integration, the first step is to find the common "universe" of genes shared across the different datasets. Here we are lucky, since the datasets are already annotated using the same system (Ensembl). If this was not not the case, ensuring the same annotation would be the first thing to do.
+
+```{r, echo=TRUE, eval=TRUE}
+### Find the shared universe of genes among datasets
+universe <- intersect(rownames(all.sce$pbmc3k), rownames(all.sce$pbmc4k))
+length(universe)
+### Subset the datasets (in the form of 'SingleCellExperiment' objects)
+pbmc3k <- all.sce$pbmc3k[universe,]
+pbmc4k <- all.sce$pbmc4k[universe,]
+### Also subset the variance
+dec3k <- all.dec$pbmc3k[universe,]
+dec4k <- all.dec$pbmc4k[universe,]
+###
+nrow(pbmc3k) == nrow(pbmc4k)
+```
+
+# Session information
+```{r}
+sessionInfo()
+```
+
+
+
+
+
+

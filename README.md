@@ -28,6 +28,22 @@
 | Time  | Title                                                               | Material                                                                                        |
 |:-----:|---------------------------------------------------------------------|-------------------------------------------------------------------------------------------------|
 |  8:45 | Announcements                                                       | [[slides](https://docs.google.com/presentation/d/11orT5ZPTHm07fCY7JkOTuLnDgRKLqlEFV7pyG_D5sG8)] |
+|  9:00 | Need for Integrating Multiple Datasets                       | [[slides](https://docs.google.com/presentation/d/1huBkMUHDtrO8e789F7psMJlj5FnIXQ2aDssGRuWiOQo/edit?usp=sharing)] |
+|  9:45 | Overview Integration Code                       |  |
+| 10:30| Break     | |
+| 10:45 | Breakout Session    |  [[doc](https://docs.google.com/document/d/1hS7iNK_bsKdqoDP_2t1woOTlKnUdIAmFVlOhSXFiAQI/edit)]    |
+| 12:00 | Lunch                                                               |                                                                                                 |
+| 01:00 | Differential Expression and Gene Set Analysis | [[slides](https://docs.google.com/presentation/d/1YF57SuKwYXou_MygbcaEdYIUMQqC2iyq4CTVJhbqpeg/edit?usp=sharing)]            |
+|  1:45 | Overview DE and GSA Code                                                               |                                                            |
+|  2:30 | Break | [[slides](https://docs.google.com/presentation/d/1pGytUDi73fRE72DvE4qXU3WrMLgtvrQg)]|
+|  2:45 | Breakout Session                                                 |  |
+|  4:45 | Wrap-up                                                             | [[doc](https://docs.google.com/document/d/1E22vd-9CBzDHjZb2koIPIQkk_QgtEQju5sdq4kAhTN8/edit)]  |
+
+## Day 3 // October 6th // Integration and Comparing Phenotypes
+
+| Time  | Title                                                               | Material                                                                                        |
+|:-----:|---------------------------------------------------------------------|-------------------------------------------------------------------------------------------------|
+|  8:45 | Announcements                                                       | [[slides](https://docs.google.com/presentation/d/11orT5ZPTHm07fCY7JkOTuLnDgRKLqlEFV7pyG_D5sG8)] |
 |  9:00 | QC, normalization, feature selection                                | [[slides](https://docs.google.com/presentation/d/14cQo6h9dp0QKXFHrp-CYgaNO1s4-t0AKnJqqqDrnh3c)][[Rmd](https://github.com/PracticalGenomics/pg2021/blob/master/day2/workshop_day2_morning.Rmd)] |
 | 10:45 | Dimensionality reduction, visualization and clustering              | [[slides](https://docs.google.com/presentation/d/1Vh3fcE0DrhRJjVIT8wLGUtK9_zu1w2lzN0sCHPzX6l0)]][Rmd](https://github.com/PracticalGenomics/pg2021/blob/master/day2/workshop_day2_morning2.Rmd)] |
 | 10:45 | Break                                                               |                                                                                                 |
@@ -38,8 +54,6 @@
 |  3:00 | Marker gene detection and classification using reference cell atlas | [[slides](https://docs.google.com/presentation/d/18kG6Ei0LZ7JHkgzaX2Uiq6Tn-dhtI1Z48yPPPcam6YI)][[Rmd](https://github.com/PracticalGenomics/pg2021/blob/master/day2/workshop_day2_afternoon.Rmd)] |
 |  3:45 | Breakout Session                                                    | [[doc](https://docs.google.com/document/d/12al2Io812YNuMV1KlVH9muU9ARtOvWhGlkjHdzwHuuw)] |
 |  4:45 | Wrap-up                                                             |                                                                                                 |
-
-## Day 3 // October 6th // Integration and Comparing Phenotypes
 
 ## Day 4 // October 7th // Trajectory Analysis and Independent Work
 
