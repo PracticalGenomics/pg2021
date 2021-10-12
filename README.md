@@ -51,8 +51,8 @@
 | 01:00 | Differential Expression and Gene Set Analysis | [[slides](https://docs.google.com/presentation/d/1YF57SuKwYXou_MygbcaEdYIUMQqC2iyq4CTVJhbqpeg/edit?usp=sharing)]            |
 |  1:45 | Overview DE and GSA Code                                                               |                                                            |
 |  2:30 | Break | |
-|  2:45 | Breakout Session                                                 |  |
-|  4:45 | Wrap-up                                                             | [[doc](https://docs.google.com/document/d/1E22vd-9CBzDHjZb2koIPIQkk_QgtEQju5sdq4kAhTN8/edit)]  |
+|  2:45 | Breakout Session                                                 | [[doc](https://docs.google.com/document/d/1E22vd-9CBzDHjZb2koIPIQkk_QgtEQju5sdq4kAhTN8/edit)]  |
+|  4:45 | Wrap-up                                                             |  |
 ## Day 4 // October 7th // Trajectory Analysis and Independent Work
 
 | Time  | Title                                                               | Material                                                                                        |
